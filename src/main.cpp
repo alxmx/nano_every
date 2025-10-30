@@ -14,7 +14,7 @@
     C @ D6:  0–85
     D @ D7:  90–180
     E @ D8:  0–180
-    F @ D9:  90–180
+    F @ D9:  90–180--
 
   Power strategy:
     - To avoid brown-outs and excessive current draw, only one servo is attached
