@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>6-DOF Servo Controller</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 30px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .status-bar {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #dc3545;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.connected {
+            background: #28a745;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .servo-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .servo-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            border: 2px solid #e9ecef;
+            transition: all 0.3s;
+        }
+
+        .servo-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .servo-card.active {
+            border-color: #28a745;
+            background: #f0fff4;
+        }
+
+        .servo-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .servo-name {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .servo-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #28a745;
+            font-family: 'Courier New', monospace;
+        }
+
+        .servo-range {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .slider-container {
+            position: relative;
+            padding: 10px 0;
+        }
+
+        .slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            outline: none;
+            -webkit-appearance: none;
+            background: #ddd;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .slider::-webkit-slider-thumb:hover {
+            background: #5568d3;
+            transform: scale(1.2);
+        }
+
+        .slider::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+        }
+
+        .preset-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .preset-section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .preset-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .preset-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+        }
+
+        .preset-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .preset-item:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .preset-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .preset-positions {
+            font-size: 0.85em;
+            color: #666;
+            font-family: 'Courier New', monospace;
+        }
+
+        .delete-preset {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+
+        .delete-preset:hover {
+            background: #c82333;
+        }
+
+        .log-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+        }
+
+        .log-section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .log-output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+        }
+
+        .log-entry.sent {
+            color: #4ec9b0;
+        }
+
+        .log-entry.received {
+            color: #ce9178;
+        }
+
+        .log-entry.error {
+            color: #f48771;
+        }
+
+        input[type="text"] {
+            padding: 10px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1em;
+            flex: 1;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #666;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 6-DOF Servo Controller</h1>
+        <p class="subtitle">Bluetooth Serial Control Interface</p>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="status-indicator" id="connectionStatus"></div>
+                <span id="connectionText">Disconnected</span>
+            </div>
+            <button class="btn btn-primary" id="connectBtn">Connect to Bluetooth</button>
+            <button class="btn btn-danger" id="disconnectBtn" style="display: none;">Disconnect</button>
+        </div>
+
+        <!-- Servo Controls -->
+        <div class="servo-controls" id="servoControls"></div>
+
+        <!-- Preset Section -->
+        <div class="preset-section">
+            <h2>💾 Position Presets</h2>
+            <div class="preset-controls">
+                <input type="text" id="presetName" placeholder="Enter preset name...">
+                <button class="btn btn-success" id="savePresetBtn">Save Current Position</button>
+                <button class="btn btn-primary" id="exportBtn">Export All</button>
+            </div>
+            <div class="preset-list" id="presetList"></div>
+        </div>
+
+        <!-- Communication Log -->
+        <div class="log-section">
+            <h2>📡 Communication Log</h2>
+            <div class="log-output" id="logOutput"></div>
+        </div>
+
+        <div class="footer">
+            <p>Created for Arduino Nano Every 6-DOF Robotic Arm • 2025</p>
+        </div>
+    </div>
+
+    <script>
+        // Servo configuration - matches Arduino code
+        const servos = [
+            { name: 'A', pin: 4, min: 0, max: 180, current: 0 },
+            { name: 'B', pin: 5, min: 45, max: 90, current: 45 },
+            { name: 'C', pin: 6, min: 0, max: 85, current: 0 },
+            { name: 'D', pin: 7, min: 90, max: 180, current: 90 },
+            { name: 'E', pin: 8, min: 0, max: 180, current: 0 },
+            { name: 'F', pin: 9, min: 90, max: 180, current: 90 }
+        ];
+
+        let port;
+        let reader;
+        let writer;
+        let keepReading = false;
+
+        // Throttling variables
+        let lastCommandTime = 0;
+        let commandThrottle = 100; // Minimum ms between commands
+        let pendingCommands = new Map(); // Store pending commands per servo
+        let throttleTimer = null;
+
+        // Initialize UI
+        function initServoControls() {
+            const container = document.getElementById('servoControls');
+            servos.forEach((servo, index) => {
+                const card = document.createElement('div');
+                card.className = 'servo-card';
+                card.id = `servo-${servo.name}`;
+                card.innerHTML = `
+                    <div class="servo-header">
+                        <div class="servo-name">Servo ${servo.name}</div>
+                        <div class="servo-value" id="value-${servo.name}">${servo.current}°</div>
+                    </div>
+                    <div class="servo-range">Range: ${servo.min}° - ${servo.max}° | Pin D${servo.pin}</div>
+                    <div class="slider-container">
+                        <input type="range" 
+                               class="slider" 
+                               id="slider-${servo.name}"
+                               min="${servo.min}" 
+                               max="${servo.max}" 
+                               value="${servo.current}"
+                               step="1">
+                    </div>
+                `;
+                container.appendChild(card);
+
+                // Add slider event listener
+                const slider = document.getElementById(`slider-${servo.name}`);
+                slider.addEventListener('input', (e) => {
+                    updateServoValue(index, parseInt(e.target.value), false);
+                });
+                
+                // Also update on release for final position
+                slider.addEventListener('change', (e) => {
+                    updateServoValue(index, parseInt(e.target.value), true);
+                });
+            });
+        }
+
+        // Update servo value and send command with throttling
+        function updateServoValue(index, value, immediate = false) {
+            servos[index].current = value;
+            document.getElementById(`value-${servos[index].name}`).textContent = `${value}°`;
+            
+            // Highlight active servo
+            document.querySelectorAll('.servo-card').forEach(card => card.classList.remove('active'));
+            document.getElementById(`servo-${servos[index].name}`).classList.add('active');
+            
+            // Store this command as pending
+            const servoName = servos[index].name;
+            pendingCommands.set(servoName, value);
+            
+            // If immediate (slider released), send now
+            if (immediate) {
+                sendPendingCommand(servoName);
+            } else {
+                // Schedule throttled send
+                scheduleThrottledSend();
+            }
+        }
+
+        // Schedule throttled command sending
+        function scheduleThrottledSend() {
+            if (throttleTimer) {
+                clearTimeout(throttleTimer);
+            }
+            
+            throttleTimer = setTimeout(() => {
+                const now = Date.now();
+                const timeSinceLastCommand = now - lastCommandTime;
+                
+                if (timeSinceLastCommand >= commandThrottle && pendingCommands.size > 0) {
+                    // Send the most recent command for any servo
+                    const [servoName, value] = Array.from(pendingCommands.entries())[0];
+                    sendPendingCommand(servoName);
+                    
+                    // Reschedule if more commands pending
+                    if (pendingCommands.size > 0) {
+                        scheduleThrottledSend();
+                    }
+                } else {
+                    // Try again after throttle period
+                    throttleTimer = setTimeout(scheduleThrottledSend, commandThrottle - timeSinceLastCommand);
+                }
+            }, 50); // Check every 50ms
+        }
+
+        // Send a pending command for a specific servo
+        function sendPendingCommand(servoName) {
+            if (pendingCommands.has(servoName)) {
+                const value = pendingCommands.get(servoName);
+                sendCommand(`${servoName}${value}`);
+                pendingCommands.delete(servoName);
+                lastCommandTime = Date.now();
+            }
+        }
+
+        // Connect to Bluetooth Serial
+        async function connect() {
+            try {
+                // Request a port
+                port = await navigator.serial.requestPort();
+                await port.open({ baudRate: 9600 });
+
+                log('Connected to Bluetooth device', 'received');
+                document.getElementById('connectionStatus').classList.add('connected');
+                document.getElementById('connectionText').textContent = 'Connected';
+                document.getElementById('connectBtn').style.display = 'none';
+                document.getElementById('disconnectBtn').style.display = 'inline-block';
+
+                // Setup reader and writer
+                const textDecoder = new TextDecoderStream();
+                const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+                reader = textDecoder.readable.getReader();
+
+                const textEncoder = new TextEncoderStream();
+                const writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
+                writer = textEncoder.writable.getWriter();
+
+                // Start reading
+                keepReading = true;
+                readLoop();
+
+            } catch (error) {
+                log(`Connection error: ${error.message}`, 'error');
+            }
+        }
+
+        // Disconnect from Bluetooth Serial
+        async function disconnect() {
+            keepReading = false;
+            if (reader) {
+                await reader.cancel();
+                reader = null;
+            }
+            if (writer) {
+                await writer.close();
+                writer = null;
+            }
+            if (port) {
+                await port.close();
+                port = null;
+            }
+
+            log('Disconnected', 'error');
+            document.getElementById('connectionStatus').classList.remove('connected');
+            document.getElementById('connectionText').textContent = 'Disconnected';
+            document.getElementById('connectBtn').style.display = 'inline-block';
+            document.getElementById('disconnectBtn').style.display = 'none';
+        }
+
+        // Read loop for incoming data
+        async function readLoop() {
+            try {
+                while (keepReading) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    if (value) {
+                        log(value.trim(), 'received');
+                    }
+                }
+            } catch (error) {
+                log(`Read error: ${error.message}`, 'error');
+            }
+        }
+
+        // Send command to Arduino
+        async function sendCommand(cmd) {
+            if (!writer) {
+                log('Not connected!', 'error');
+                return;
+            }
+            try {
+                await writer.write(cmd + '\n');
+                log(`→ ${cmd}`, 'sent');
+            } catch (error) {
+                log(`Send error: ${error.message}`, 'error');
+            }
+        }
+
+        // Logging
+        function log(message, type = 'info') {
+            const output = document.getElementById('logOutput');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            output.appendChild(entry);
+            output.scrollTop = output.scrollHeight;
+        }
+
+        // Presets
+        function savePreset() {
+            const name = document.getElementById('presetName').value.trim();
+            if (!name) {
+                alert('Please enter a preset name');
+                return;
+            }
+
+            const preset = {
+                name: name,
+                positions: servos.map(s => s.current)
+            };
+
+            let presets = JSON.parse(localStorage.getItem('servoPresets') || '[]');
+            presets.push(preset);
+            localStorage.setItem('servoPresets', JSON.stringify(presets));
+
+            document.getElementById('presetName').value = '';
+            loadPresets();
+            log(`Preset "${name}" saved`, 'received');
+        }
+
+        function loadPresets() {
+            const presets = JSON.parse(localStorage.getItem('servoPresets') || '[]');
+            const container = document.getElementById('presetList');
+            container.innerHTML = '';
+
+            presets.forEach((preset, index) => {
+                const item = document.createElement('div');
+                item.className = 'preset-item';
+                item.innerHTML = `
+                    <button class="delete-preset" onclick="deletePreset(${index})">×</button>
+                    <div class="preset-name">${preset.name}</div>
+                    <div class="preset-positions">
+                        ${servos.map((s, i) => `${s.name}:${preset.positions[i]}`).join(' ')}
+                    </div>
+                `;
+                item.onclick = (e) => {
+                    if (e.target.className !== 'delete-preset') {
+                        applyPreset(preset);
+                    }
+                };
+                container.appendChild(item);
+            });
+        }
+
+        function applyPreset(preset) {
+            // Apply presets sequentially with delay to avoid saturation
+            preset.positions.forEach((pos, index) => {
+                setTimeout(() => {
+                    servos[index].current = pos;
+                    document.getElementById(`slider-${servos[index].name}`).value = pos;
+                    document.getElementById(`value-${servos[index].name}`).textContent = `${pos}°`;
+                    sendCommand(`${servos[index].name}${pos}`);
+                }, index * 150); // 150ms between each servo command
+            });
+            log(`Applied preset "${preset.name}"`, 'received');
+        }
+
+        function deletePreset(index) {
+            let presets = JSON.parse(localStorage.getItem('servoPresets') || '[]');
+            const name = presets[index].name;
+            presets.splice(index, 1);
+            localStorage.setItem('servoPresets', JSON.stringify(presets));
+            loadPresets();
+            log(`Deleted preset "${name}"`, 'error');
+        }
+
+        function exportPresets() {
+            const presets = JSON.parse(localStorage.getItem('servoPresets') || '[]');
+            const dataStr = JSON.stringify(presets, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'servo_presets.json';
+            link.click();
+            log('Presets exported', 'received');
+        }
+
+        // Event listeners
+        document.getElementById('connectBtn').addEventListener('click', connect);
+        document.getElementById('disconnectBtn').addEventListener('click', disconnect);
+        document.getElementById('savePresetBtn').addEventListener('click', savePreset);
+        document.getElementById('exportBtn').addEventListener('click', exportPresets);
+
+        // Initialize on load
+        initServoControls();
+        loadPresets();
+
+        // Check for Web Serial API support
+        if (!('serial' in navigator)) {
+            alert('Web Serial API not supported. Please use Chrome or Edge browser.');
+            log('Web Serial API not supported!', 'error');
+        }
+    </script>
+</body>
+</html>
