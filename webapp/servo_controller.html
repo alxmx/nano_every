@@ -212,6 +212,58 @@
             border: none;
         }
 
+        .increment-controls {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn-increment {
+            padding: 10px 16px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 60px;
+        }
+
+        .btn-increment:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-increment:active {
+            transform: translateY(0);
+        }
+
+        .btn-increment.negative {
+            border-color: #dc3545;
+            color: #dc3545;
+        }
+
+        .btn-increment.negative:hover {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-increment.positive {
+            border-color: #28a745;
+            color: #28a745;
+        }
+
+        .btn-increment.positive:hover {
+            background: #28a745;
+            color: white;
+        }
+
         .preset-section {
             background: #f8f9fa;
             padding: 20px;
@@ -427,6 +479,14 @@
                                value="${servo.current}"
                                step="1">
                     </div>
+                    <div class="increment-controls">
+                        <button class="btn-increment negative" onclick="adjustServo(${index}, -20)">-20</button>
+                        <button class="btn-increment negative" onclick="adjustServo(${index}, -10)">-10</button>
+                        <button class="btn-increment negative" onclick="adjustServo(${index}, -5)">-5</button>
+                        <button class="btn-increment positive" onclick="adjustServo(${index}, 5)">+5</button>
+                        <button class="btn-increment positive" onclick="adjustServo(${index}, 10)">+10</button>
+                        <button class="btn-increment positive" onclick="adjustServo(${index}, 20)">+20</button>
+                    </div>
                 `;
                 container.appendChild(card);
 
@@ -448,6 +508,9 @@
             servos[index].current = value;
             document.getElementById(`value-${servos[index].name}`).textContent = `${value}°`;
             
+            // Update slider position
+            document.getElementById(`slider-${servos[index].name}`).value = value;
+            
             // Highlight active servo
             document.querySelectorAll('.servo-card').forEach(card => card.classList.remove('active'));
             document.getElementById(`servo-${servos[index].name}`).classList.add('active');
@@ -456,13 +519,25 @@
             const servoName = servos[index].name;
             pendingCommands.set(servoName, value);
             
-            // If immediate (slider released), send now
+            // If immediate (slider released or button click), send now
             if (immediate) {
                 sendPendingCommand(servoName);
             } else {
                 // Schedule throttled send
                 scheduleThrottledSend();
             }
+        }
+
+        // Adjust servo by increment (called by +/- buttons)
+        function adjustServo(index, delta) {
+            const servo = servos[index];
+            let newValue = servo.current + delta;
+            
+            // Clamp to min/max range
+            newValue = Math.max(servo.min, Math.min(servo.max, newValue));
+            
+            // Update and send immediately
+            updateServoValue(index, newValue, true);
         }
 
         // Schedule throttled command sending
